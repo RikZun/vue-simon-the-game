@@ -17,10 +17,12 @@
     </transition>
     <div class="container">
       <div class="game">
-        <div class="cell" @click="click" :class="{'cell--active': blacklight == 'green'}" id="green"></div>
-        <div class="cell" @click="click" :class="{'cell--active': blacklight == 'red'}" id="red"></div>
-        <div class="cell" @click="click" :class="{'cell--active': blacklight == 'yellow'}" id="yellow"></div>
-        <div class="cell" @click="click" :class="{'cell--active': blacklight == 'blue'}" id="blue"></div>
+        <div class="cell" v-for="cell of cells" 
+          @click="click"
+          :class="{'cell--active': blacklight == cell}"
+          :key="cell"
+          :id="cell"
+        ></div>
       </div>
     </div>
   </div>
@@ -30,10 +32,6 @@
 import Vue from 'vue'
 import { wait, randint } from './utils'
 
-//todo
-//sounds
-//idle delay
-
 export default Vue.extend({
   name: 'App',
   components: {},
@@ -41,28 +39,29 @@ export default Vue.extend({
     return {
       start: false,
       end: false,
+      control: false,
       difficty: 0,
       index: 0,
+      cells: ['green', 'red', 'yellow', 'blue'], 
+      frequencies: [329.63, 261.63, 220, 164.81],
       array: [] as string[],
       blacklight: '',
-      control: false
+      audioCtx: new window.AudioContext()
     }
   },
   methods: {
     async show() {
       const timeout = [1500, 1000, 400][this.difficty]
-      const cells = ['green', 'red', 'yellow', 'blue']
-
       await wait(1000)
 
-      for (const cell of this.array) {
-        this.choose(cell)
+      for (const oldCell of this.array) {
+        this.choose(oldCell)
         await wait(timeout)
       }
 
-      const cell = cells[randint(0, 3)]
-      this.choose(cell)
-      this.array.push(cell)
+      const newCell = this.cells[randint(0, 3)]
+      this.choose(newCell)
+      this.array.push(newCell)
 
       this.control = true
     },
@@ -84,6 +83,20 @@ export default Vue.extend({
       }
     },
     async choose(id: string) {
+      if (this.audioCtx) {
+        const gain = this.audioCtx.createGain()
+        gain.connect(this.audioCtx.destination)
+        gain.gain.value = .2
+
+        const oscillator = this.audioCtx.createOscillator()
+        oscillator.type = 'square'
+        oscillator.frequency.value = this.frequencies[this.cells.indexOf(id)]
+        oscillator.connect(gain)
+
+        oscillator.start()
+        oscillator.stop(this.audioCtx.currentTime + .2)
+      }
+      
       this.blacklight = id
 
       await wait(200)
@@ -132,8 +145,8 @@ body {
 .container {
   display: flex;
   position: absolute;
-  height: -webkit-fill-available;
-  width: -webkit-fill-available;
+  height: 100%;
+  width: 100%;
   justify-content: center;
   align-items: center;
   background-color: black;
@@ -164,8 +177,8 @@ body {
   flex-direction: column;
   position: fixed;
   z-index: 1;
-  width: -webkit-fill-available;
-  height: -webkit-fill-available;
+  width: 100%;
+  height: 100%;
   justify-content: center;
   align-items: center;
   backdrop-filter: blur(100px);
